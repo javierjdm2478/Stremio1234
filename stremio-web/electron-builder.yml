@@ -1,0 +1,10 @@
+appId: com.stremio.iptv
+productName: Stremio IPTV
+directories:
+  output: dist
+files:
+  - build/**/*
+  - main.js
+  - package.json
+win:
+  target: nsis
