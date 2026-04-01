@@ -1,0 +1,12 @@
+node_modules/
+target/
+.cargo/
+dist/
+wasm_build/
+*.exe
+*.apk
+*.tar.gz
+rustup-init.exe
+*.log
+.npm/
+.npmrc

@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install Dependencies & Build Web
+        working-directory: ./stremio-web
+        run: |
+          npm install
+          npm run build
+          npm install -D electron electron-builder
+
+      - name: Build Windows Executable
+        working-directory: ./stremio-web
+        run: npx electron-builder --win -c electron-builder.yml
+        
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stremio-windows-exe
+          path: stremio-web/dist/*.exe
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          
+      - name: Install Dependencies & Build Web
+        working-directory: ./stremio-web
+        run: |
+          npm install
+          npm run build
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          
+      - name: Initialize Capacitor & Add Android
+        working-directory: ./stremio-web
+        run: |
+          npx cap init "Stremio IPTV" com.stremio.iptv --web-dir build
+          npx cap add android
+          npx cap sync android
+          
+      - name: Build Android APK
+        working-directory: ./stremio-web/android
+        run: ./gradlew assembleDebug
+        
+      - name: Upload Android Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stremio-android-apk
+          path: stremio-web/android/app/build/outputs/apk/debug/app-debug.apk
+
+  release:
+    needs: [build-windows, build-android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: stremio-windows-exe
+          path: dist-win
+          
+      - name: Download Android Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: stremio-android-apk
+          path: dist-android
+          
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist-win/*.exe
+            dist-android/*.apk
+          fail_on_unmatched_files: true
+          generate_release_notes: true
